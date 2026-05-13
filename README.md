@@ -1,6 +1,6 @@
 This is a set of instructions to build a buildroot image to be used for v86. This variation fo the process was designed to create two different files - bzimage and cpio formats.
 
-This does not follow David Humphreys browservm project. That project does a nice job of packaging all of the processes together as one, under a docker container. However, it
+This does not follow David Humphreys browservm project (https://github.com/humphd/browser-vm). That project does a nice job of packaging all of the processes together as one, under a docker container. However, it
 makes the build process long and brittle. If any part of the OS changes, you have to go back and rebuild the whole thing.
 
 We are focused here on building these two components:
