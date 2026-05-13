@@ -5,7 +5,7 @@ makes the build process long and brittle. If any part of the OS changes, you hav
 
 We are focused here on building these two components:
 
-bzimage file - this is the boot file, drivers, etc. We probably only want to build this once.
-cpio file - this is the file system that we want to build out again and again.
+* bzimage file - this is the boot file, drivers, etc. We probably only want to build this once.
+* cpio file - this is the file system that we want to build out again and again.
 
 Props to Dhrupad Joshi https://github.com/trigerman/ for pulling this together.
