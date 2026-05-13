@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic Buildroot Guide for v86 Emulator</title>
+    <meta name="description" content="A comprehensive guide to building lightweight Linux images for the v86 browser emulator using Buildroot.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --sidebar-bg: rgba(30, 41, 59, 0.7);
+            --card-bg: rgba(30, 41, 59, 0.5);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent-primary: #38bdf8;
+            --accent-secondary: #818cf8;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --code-bg: #1e293b;
+            --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        /* Layout */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        aside {
+            width: 300px;
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            background: var(--sidebar-bg);
+            backdrop-filter: blur(12px);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            z-index: 100;
+        }
+
+        @media (max-width: 1024px) {
+            aside {
+                display: none;
+            }
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toc {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toc-item {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .toc-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .toc-item.active {
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent-primary);
+            font-weight: 500;
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: 4rem 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        #content {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Typography Styling */
+        h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 2rem;
+            letter-spacing: -0.025em;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            margin-top: 3rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        h2::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 1.5rem;
+            background: var(--accent-primary);
+            border-radius: 2px;
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: var(--accent-primary);
+        }
+
+        p {
+            margin-bottom: 1.25rem;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        a {
+            color: var(--accent-primary);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.2s;
+        }
+
+        a:hover {
+            border-color: var(--accent-primary);
+        }
+
+        /* Code Blocks */
+        pre {
+            background: var(--code-bg) !important;
+            border-radius: 0.75rem !important;
+            padding: 1.5rem !important;
+            margin: 1.5rem 0 !important;
+            border: 1px solid var(--border-color) !important;
+            position: relative;
+            overflow: visible !important;
+        }
+
+        code {
+            font-family: var(--font-mono) !important;
+            font-size: 0.9rem !important;
+        }
+
+        :not(pre) > code {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            color: var(--accent-primary);
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 0.4rem;
+            border-radius: 0.4rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        /* List Styling */
+        ul, ol {
+            margin-bottom: 1.5rem;
+            margin-left: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        /* Steps / Badges */
+        .step-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--accent-primary);
+            color: var(--bg-color);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-right: 0.5rem;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 4rem;
+            padding: 2rem 0;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <aside>
+            <div class="logo">
+                <i data-lucide="box"></i>
+                <span>v86 Buildroot</span>
+            </div>
+            <nav>
+                <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem;">Contents</div>
+                <div id="toc-list" class="toc">
+                    <!-- TOC items will be injected here -->
+                </div>
+            </nav>
+            <div style="margin-top: auto;">
+                <a href="https://github.com/copy/v86" target="_blank" class="toc-item" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <i data-lucide="github" size="16"></i>
+                    v86 Project
+                </a>
+            </div>
+        </aside>
+
+        <main>
+            <div id="content">
+                <!-- Markdown will be rendered here -->
+            </div>
+
+            <footer>
+                <p>&copy; 2026 v86 Buildroot Guide. Crafted for Students.</p>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Raw Markdown Data -->
+    <script id="markdown-content" type="text/markdown">
+# Basic Buildroot Guide for v86 Emulator
+
+This guide outlines the core steps to build a simple, lightweight Linux image using Buildroot that is fully compatible with the 32-bit [v86](https://github.com/copy/v86) browser emulator. It synthesizes the essential environment setups, architecture choices, and kernel configurations required for a stable v86 VM.
+
+## Step 1: Environment Setup
+
+Start on an Ubuntu build machine (can be a local VM or WSL). You'll need essential build tools to compile the toolchain and kernel.
+
+```bash
+# 1. Install prerequisites
+sudo apt update
+sudo apt install -y build-essential wget cpio unzip rsync bc libncurses5-dev python3 libssl-dev git
+
+# 2. Download Buildroot (using an LTS version as an example)
+cd ~
+wget https://buildroot.org/downloads/buildroot-2024.02.2.tar.gz
+tar -xvf buildroot-2024.02.2.tar.gz
+cd buildroot-2024.02.2
+```
+
+## Step 2: Configure Buildroot
+
+We will start with a default PC configuration and then adapt it to a lightweight 32-bit environment suitable for v86.
+
+```bash
+# Start with a generic PC config
+make pc_x86_64_bios_defconfig
+
+# Open the configuration menu
+make menuconfig
+```
+
+In the `menuconfig` interface, apply the following critical settings:
+
+1. **Target options** (Crucial for v86 compatibility):
+   - **Target Architecture**: `i386`
+   - **Target Architecture Variant**: `pentiumpro` (v86 supports the i686 instruction set well).
+
+2. **System configuration**:
+   - Set **System hostname** and **System banner** to your liking.
+   - **Run a getty (login prompt) after boot**: Set *TTY port* to `tty1` (maps to the VGA screen) or `ttyS0` (maps to serial). You can configure a dual console later if needed.
+
+3. **Filesystem images**:
+   - Select `cpio the root filesystem (for use as an initial RAM filesystem)`
+   - Set **Compression method** to `gzip`.
+   - **Deselect** `ext2/3/4 root filesystem` (We don't need a persistent disk image; `cpio.gz` loaded directly into RAM is perfect and fast for v86).
+
+*Save and Exit menuconfig.*
+
+## Step 3: Configure the Linux Kernel
+
+We must ensure the kernel has built-in drivers for devices emulated by v86, such as networking (e1000), serial consoles, and framebuffer graphics. They must be built-in (`*`), not modules (`M`).
+
+```bash
+# Open kernel configuration
+make linux-menuconfig
+```
+
+In `linux-menuconfig`, press `/` to search and verify these are set to `*` (Press `y` to select as built-in):
+
+1. **E1000 Network Driver**: `CONFIG_E1000=y`
+   *(Device Drivers -> Network device support -> Ethernet driver support -> Intel devices -> Intel(R) PRO/1000 Gigabit Ethernet support)*
+2. **Packet Sockets** (Needed for advanced networking/packet analysis): `CONFIG_PACKET=y`
+   *(Networking support -> Networking options -> Packet socket)*
+3. **8250 Serial** (For serial console output): `CONFIG_SERIAL_8250=y` and `CONFIG_SERIAL_8250_CONSOLE=y`
+   *(Device Drivers -> Character devices -> Serial drivers -> 8250/16550 and compatible serial support)*
+4. **Framebuffer Console** (For VGA graphics support): `CONFIG_FB=y` and `CONFIG_FRAMEBUFFER_CONSOLE=y`
+   *(Device Drivers -> Graphics support -> Frame buffer Devices AND Console display driver support)*
+
+*Save and Exit linux-menuconfig.*
+
+## Step 4: Build the Image
+
+Compile the toolchain, kernel, and filesystem. This process can take 20-40 minutes depending on your CPU cores.
+
+```bash
+# If you previously built for 64-bit, ALWAYS run make clean first
+make clean
+
+# Build using all available cores
+make -j$(nproc)
+```
+
+## Step 5: Extract Artifacts
+
+Once the compilation succeeds, navigate to the output directory:
+
+```bash
+cd output/images/
+```
+
+You only need two files to boot your VM in v86:
+1. `bzImage` (The Kernel)
+2. `rootfs.cpio.gz` (The Filesystem / Initrd)
+
+Copy these files to your web project folder (e.g., into an `images/` directory).
+
+## Step 6: v86 Integration
+
+In your web application's HTML/JS setup, instantiate the emulator. Here is a basic snippet demonstrating the proper parameters:
+
+```html
+<!-- Container for the VGA screen -->
+<div id="screen_container">
+    <div style="white-space: pre; font: 14px monospace;"></div>
+    <canvas></canvas>
+</div>
+
+<script type="module">
+    import { V86Starter } from "./v86.js"; // Adjust path to your v86 library
+
+    window.emulator = new V86Starter({
+        wasm_path: "v86.wasm",
+        memory_size: 256 * 1024 * 1024,
+        vga_memory_size: 8 * 1024 * 1024,
+        screen_container: document.getElementById("screen_container"),
+        bios: { url: "bios/seabios.bin" },
+        vga_bios: { url: "bios/vgabios.bin" },
+        bzimage: { url: "images/bzImage" },
+        initrd: { url: "images/rootfs.cpio.gz" },
+        
+        // Critical boot parameters for v86 compatibility
+        cmdline: "rw root=/dev/ram0 console=tty1 console=ttyS0,115200 init=/sbin/init net.ifnames=0 biosdevname=0 acpi=off noapic nolapic",
+        autostart: true,
+    });
+&lt;/script&gt;
+```
+
+### Important Boot Parameters Explained:
+- `console=tty1 console=ttyS0,115200`: Outputs logs to both the VGA screen and the serial console.
+- `net.ifnames=0 biosdevname=0`: Prevents the kernel from renaming `eth0` to modern interfaces like `enp0s5`. Crucial for simple network scripts to work properly inside v86.
+- `acpi=off noapic nolapic`: Disables certain hardware configurations that can cause instability or freezes in the v86 emulator environment.
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const markdown = document.getElementById('markdown-content').textContent;
+            const contentDiv = document.getElementById('content');
+            const tocList = document.getElementById('toc-list');
+
+            // Initialize Lucide icons
+            lucide.createIcons();
+
+            // Render Markdown
+            contentDiv.innerHTML = marked.parse(markdown);
+
+            // Post-processing: Syntax Highlighting & TOC
+            const headings = contentDiv.querySelectorAll('h1, h2');
+            headings.forEach((heading, index) => {
+                const id = heading.textContent.toLowerCase().replace(/[^\w]+/g, '-');
+                heading.id = id;
+
+                if (heading.tagName === 'H2') {
+                    const li = document.createElement('a');
+                    li.href = `#${id}`;
+                    li.className = 'toc-item';
+                    li.textContent = heading.textContent;
+                    tocList.appendChild(li);
+                }
+            });
+
+            // Highlight code blocks
+            Prism.highlightAll();
+
+            // Add Copy Buttons
+            document.querySelectorAll('pre').forEach(block => {
+                const button = document.createElement('button');
+                button.className = 'copy-btn';
+                button.innerHTML = '<i data-lucide="copy" size="14"></i>';
+                block.appendChild(button);
+
+                button.addEventListener('click', () => {
+                    const code = block.querySelector('code').innerText;
+                    navigator.clipboard.writeText(code).then(() => {
+                        button.innerHTML = '<i data-lucide="check" size="14"></i>';
+                        setTimeout(() => {
+                            button.innerHTML = '<i data-lucide="copy" size="14"></i>';
+                            lucide.createIcons();
+                        }, 2000);
+                        lucide.createIcons();
+                    });
+                });
+            });
+
+            // Active TOC handling
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.5
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        document.querySelectorAll('.toc-item').forEach(item => {
+                            item.classList.remove('active');
+                            if (item.getAttribute('href') === `#${entry.target.id}`) {
+                                item.classList.add('active');
+                            }
+                        });
+                    }
+                });
+            }, observerOptions);
+
+            headings.forEach(h => observer.observe(h));
+            
+            // Re-initialize icons for dynamic elements
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
