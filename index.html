@@ -331,6 +331,9 @@ Start on an Ubuntu build machine (can be a local VM or WSL). You'll need essenti
 ```bash
 # 1. Install prerequisites
 sudo apt update
+# install the vm tools if you're using vmware
+sudo apt install -y open-vm-tools open-vm-tools-desktop
+sudo reboot
 sudo apt install -y build-essential wget cpio unzip rsync bc libncurses5-dev python3 libssl-dev git
 
 # 2. Download Buildroot (using an LTS version as an example)
