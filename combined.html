@@ -283,6 +283,41 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #334155;
         }
+
+
+        /* Rendering fixes */
+        html { scroll-behavior: smooth; }
+        pre { overflow-x: auto !important; overflow-y: hidden !important; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            color: var(--text-secondary);
+            overflow: hidden;
+            border-radius: 0.75rem;
+        }
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 0.75rem;
+            text-align: left;
+        }
+        th {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        blockquote {
+            border-left: 4px solid var(--accent-primary);
+            padding-left: 1rem;
+            color: var(--text-secondary);
+            margin: 1.5rem 0;
+        }
+        @media (max-width: 640px) {
+            main { padding: 2rem 1rem; }
+            h1 { font-size: 2.1rem; }
+            h2 { font-size: 1.5rem; }
+            p { font-size: 1rem; }
+        }
+
     </style>
 </head>
 <body>
@@ -796,3 +831,103 @@ $(BR2_EXTERNAL_v86_PATH)/board/v86/linux.config
 ```
 
 which tells Buildroot which Linux kernel configuration file to use.
+</script>
+
+<script>
+(function () {
+    const markdownEl = document.getElementById('markdown-content');
+    const contentEl = document.getElementById('content');
+    const tocEl = document.getElementById('toc-list');
+
+    if (!markdownEl || !contentEl) return;
+
+    marked.setOptions({
+        gfm: true,
+        breaks: false,
+        headerIds: true,
+        mangle: false,
+        highlight: function (code, lang) {
+            if (window.Prism && lang && Prism.languages[lang]) {
+                return Prism.highlight(code, Prism.languages[lang], lang);
+            }
+            return code;
+        }
+    });
+
+    contentEl.innerHTML = marked.parse(markdownEl.textContent || '');
+
+    // Give headings stable ids for table-of-contents links.
+    const headings = Array.from(contentEl.querySelectorAll('h1, h2'));
+    const usedIds = new Set();
+    function slugify(text) {
+        let base = text.toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .trim()
+            .replace(/\s+/g, '-');
+        if (!base) base = 'section';
+        let id = base;
+        let n = 2;
+        while (usedIds.has(id)) id = `${base}-${n++}`;
+        usedIds.add(id);
+        return id;
+    }
+    headings.forEach(h => {
+        if (!h.id) h.id = slugify(h.textContent);
+    });
+
+    // Build the sidebar from section headings.
+    if (tocEl) {
+        tocEl.innerHTML = '';
+        headings.filter(h => h.tagName === 'H1' || h.tagName === 'H2').forEach(h => {
+            const a = document.createElement('a');
+            a.href = `#${h.id}`;
+            a.className = 'toc-item';
+            a.textContent = h.textContent.replace(/^#*\s*/, '');
+            if (h.tagName === 'H2') a.style.paddingLeft = '1.25rem';
+            tocEl.appendChild(a);
+        });
+    }
+
+    // Add copy buttons to code blocks.
+    contentEl.querySelectorAll('pre').forEach(pre => {
+        const code = pre.querySelector('code');
+        if (!code) return;
+        const button = document.createElement('button');
+        button.className = 'copy-btn';
+        button.type = 'button';
+        button.setAttribute('aria-label', 'Copy code block');
+        button.innerHTML = '<i data-lucide="copy" size="16"></i>';
+        button.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(code.innerText);
+                button.innerHTML = '<i data-lucide="check" size="16"></i>';
+                setTimeout(() => button.innerHTML = '<i data-lucide="copy" size="16"></i>', 1200);
+                if (window.lucide) lucide.createIcons();
+            } catch (e) {
+                button.textContent = 'Copy failed';
+            }
+        });
+        pre.appendChild(button);
+    });
+
+    // Highlight after markdown rendering.
+    if (window.Prism) Prism.highlightAllUnder(contentEl);
+    if (window.lucide) lucide.createIcons();
+
+    // Active table-of-contents item while scrolling.
+    const tocLinks = Array.from(document.querySelectorAll('.toc-item[href^="#"]'));
+    const byId = new Map(tocLinks.map(a => [a.getAttribute('href').slice(1), a]));
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                tocLinks.forEach(a => a.classList.remove('active'));
+                const link = byId.get(entry.target.id);
+                if (link) link.classList.add('active');
+            }
+        });
+    }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+    headings.forEach(h => observer.observe(h));
+})();
+</script>
+</body>
+</html>
